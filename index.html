@@ -267,15 +267,84 @@ async function jsonRpc(url, method, params, timeoutMs=20000){
     return j.result;
   } finally { clearTimeout(t); }
 }
-/* CometBFT nodes occasionally drop connections (esp. tx_search): retry across bases with spacing. */
-async function comet(method, params, tries=3){
+/* WebSocket transport: CometBFT also serves the same JSON-RPC over
+   wss://<host>/websocket, which is NOT subject to CORS. Verified 2026-11-01:
+   - the HTTP endpoints' CORS allows only localhost/127.0.0.1 origins
+     (mschihuahua reflects those; public https origins like github.io get
+     NO Access-Control-Allow-Origin on any of the 3 hosts), so a hosted
+     page cannot use HTTP fetch for CometBFT at all;
+   - WS handshakes WITH Origin https://nepicobsv-hash.github.io succeed
+     (101) on all 3 hosts, and status/block/blockchain/block_results/
+     validators/tx/tx_search all answer over WS.
+   So: on localhost keep HTTP first (local proxy is fastest); anywhere
+   else (GitHub Pages, file://) use WS first, HTTP as fallback. */
+const COMET_WS_HOSTS=['wss://comet-rpc.infinitepanda.xyz/websocket','wss://comet-rpc-infinite.mschihuahua.org/websocket','wss://comet-rpc.infinitedrive.xyz/websocket'];
+let wsConn=null;
+function wsConnect(host){
+  return new Promise((resolve,reject)=>{
+    let ws; try{ ws=new WebSocket(host); }catch(e){ return reject(e); }
+    const to=setTimeout(()=>{ try{ws.close();}catch{} reject(new Error('WS接続タイムアウト')); },12000);
+    ws.addEventListener('open', ()=>{
+      clearTimeout(to);
+      const conn={ ws, pending:new Map(), nextId:1, host };
+      ws.addEventListener('message', (ev)=>{
+        let j; try{ j=JSON.parse(ev.data); }catch{ return; }
+        const p=conn.pending.get(j.id); if(!p) return;
+        conn.pending.delete(j.id);
+        if(j.error) p.reject(new Error(j.error.data || j.error.message || JSON.stringify(j.error)));
+        else p.resolve(j.result);
+      });
+      ws.addEventListener('close', ()=>{
+        for(const p of conn.pending.values()) p.reject(new Error('WSが切断されました'));
+        conn.pending.clear();
+        if(wsConn===conn) wsConn=null;
+      });
+      ws.addEventListener('error', ()=>{ try{ws.close();}catch{} });
+      resolve(conn);
+    });
+    ws.addEventListener('error', ()=>{ clearTimeout(to); reject(new Error('WS接続エラー')); });
+  });
+}
+function wsSend(conn, method, params, timeoutMs){
+  return new Promise((resolve,reject)=>{
+    const id=conn.nextId++;
+    const to=setTimeout(()=>{ conn.pending.delete(id); reject(new Error('WSタイムアウト')); }, timeoutMs);
+    conn.pending.set(id, { resolve:(v)=>{ clearTimeout(to); resolve(v); }, reject:(e)=>{ clearTimeout(to); reject(e); } });
+    try{ conn.ws.send(JSON.stringify({ jsonrpc:'2.0', id, method, params })); }
+    catch(e){ conn.pending.delete(id); clearTimeout(to); reject(e); }
+  });
+}
+async function cometWs(method, params, timeoutMs=25000){
+  if(wsConn){ try{ const r=await wsSend(wsConn, method, params, timeoutMs); cometBaseUsed='WebSocket: '+wsConn.host.replace('wss://','').replace('/websocket',''); updateFoot(); return r; }catch(e){ wsConn=null; } }
   let lastErr;
-  for(let a=0; a<tries; a++){
+  for(const host of COMET_WS_HOSTS){
+    try{
+      wsConn=await wsConnect(host);
+      const r=await wsSend(wsConn, method, params, timeoutMs);
+      cometBaseUsed='WebSocket: '+host.replace('wss://','').replace('/websocket',''); updateFoot();
+      return r;
+    }catch(e){ lastErr=e; wsConn=null; }
+  }
+  throw lastErr || new Error('WebSocketでCometBFTに接続できませんでした');
+}
+/* CometBFT nodes occasionally drop connections (esp. tx_search): retry across transports with spacing. */
+async function comet(method, params, tries=3){
+  const httpAttempt=async()=>{
+    let lastErr;
     for(const base of cometBases){
       try{
         const res=await jsonRpc(base, method, params, method==='tx_search'?30000:20000);
         cometBaseUsed=base; updateFoot(); return res;
       }catch(e){ lastErr=e; }
+    }
+    throw lastErr || new Error('HTTPでCometBFTに接続できませんでした');
+  };
+  const wsAttempt=()=>cometWs(method, params, method==='tx_search'?45000:25000);
+  const transports = isLocalHttp ? [httpAttempt, wsAttempt] : [wsAttempt, httpAttempt];
+  let lastErr;
+  for(let a=0; a<tries; a++){
+    for(const t of transports){
+      try{ return await t(); }catch(e){ lastErr=e; }
     }
     if(a<tries-1) await sleep(900*(a+1));
   }

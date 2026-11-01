@@ -52,11 +52,13 @@
 - [ ] アカウント履歴のページ送り・絞り込みの改善
 - [ ] バリデーター詳細ページ（委任者数推移など、取れる範囲で）
 
-## Phase 3: 公開の検討（未定）
+## Phase 3: ウェブサイト公開 ✅ 完了（2026-11-01）
 
-- [ ] ホスティング先の選定（GitHub Pages / Cloudflare Pages 等）
-- [ ] CORS 制約への対処方針の決定（mschihuahua 直結のみにするか、小さなプロキシを用意するか）
-- [ ] 公開範囲の最終確認（この段階で改めて判断する）
+- [x] ホスティング先の選定: GitHub Pages（https://nepicobsv-hash.github.io/42-cosmos-scan/）
+- [x] CORS 制約への対処: HTTP の CORS は localhost Origin のみ許可という実測結果を受け、
+      公開サイトでは CometBFT の WebSocket 版 JSON-RPC（CORS対象外、全ホストで
+      github.io Origin のハンドシェイク成功を実測）を使う方式に決定・実装
+- [x] 公開範囲の最終確認（コード・サイトとも公開、ユーザーの指示による）
 
 ## 将来の選択肢
 

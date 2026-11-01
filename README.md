@@ -4,7 +4,8 @@
 EVM側エクスプローラー（scan.infinitedrive.xyz）では見えない Cosmos Tx（送金・委任など）の中身を表示する。
 （用語注意:「送金」は Cosmos SDK の bank モジュール — トークンの残高・送金を扱う内部モジュールの名前で、
 現実の銀行とは無関係 — の `MsgSend` のこと。以前の版で「銀行送金」と書いていたのは誤解を招く表現だったので改めた。）
-コードはこのリポジトリで公開しているが、ウェブサイトとしてのホスティング（公開URLでの運用）はまだしていない（Phase 3 で検討）。
+コードはこのリポジトリで公開し、ウェブサイトとしても GitHub Pages で公開している:
+**https://nepicobsv-hash.github.io/42-cosmos-scan/**
 
 ## 開発状況
 
@@ -13,7 +14,7 @@ EVM側エクスプローラー（scan.infinitedrive.xyz）では見えない Cos
 | Phase 0: 調査・実証（エンドポイント/CORS、Txデコード、プリコンパイル検証） | ✅ 完了（2026-11-01） |
 | Phase 1: ローカル静的サイト（ホーム/ブロック/Tx/バリデーター/アカウント/検索） | ✅ 完了（2026-11-01、実データで検証済み） |
 | Phase 2: 拡張（アンボンディング表示、報酬、対応メッセージ型の追加） | 予定 |
-| Phase 3: 公開の検討（ホスティング、CORS対処） | 未定 |
+| Phase 3: ウェブサイト公開（GitHub Pages） | ✅ 完了（2026-11-01、CORSはWebSocket経由で解決） |
 
 詳しい作業予定は [ROADMAP.md](ROADMAP.md) を見てください。
 
@@ -32,20 +33,35 @@ node server.mjs
 
 ### B. ファイルを直接開く
 
-`index.html` をブラウザで直接開いても動く（CometBFT は CORS 対応している
-`comet-rpc-infinite.mschihuahua.org` に直接つなぐ）。ただし公開RPCが混雑時に
-接続を切ることがあり、その場合は A の方が安定する。
+`index.html` をブラウザで直接開いても動く（CometBFT へは WebSocket 経由で
+接続するため、CORS の制約を受けない。下記の実測結果を参照）。
+ただし公開RPCが混雑時に接続を切ることがあり、その場合は A の方が安定する。
 
-## なぜプロキシがあるのか（2026-11-01 実測）
+### C. 公開サイト
+
+https://nepicobsv-hash.github.io/42-cosmos-scan/ （GitHub Pages、同内容）
+
+## 接続方式と CORS の実測結果（2026-11-01）
 
 CometBFT RPC は `~/workspace/42-flowmap/` の既存スクリプト（`finalize.mjs` 等）に
 記録のあった次の3つが生存し、全て `infinite_421018-1` / tx_index on / 高さ1からの全履歴あり:
+`comet-rpc.infinitepanda.xyz` / `comet-rpc.infinitedrive.xyz` / `comet-rpc-infinite.mschihuahua.org`
 
-| エンドポイント | ブラウザから直読み | 備考 |
-|---|---|---|
-| `comet-rpc.infinitepanda.xyz` | ×（CORSヘッダなし） | curl/サーバー経由は可、応答は速い |
-| `comet-rpc.infinitedrive.xyz` | ×（CORSヘッダなし） | 同上 |
-| `comet-rpc-infinite.mschihuahua.org` | ○（Originを反射） | 時々接続が切れる（特に tx_search） |
+HTTP の CORS を Origin 別に実測した結果:
+
+- mschihuahua は **localhost / 127.0.0.1 の Origin だけ**を反射する
+  （`http://localhost:8787` 等は可、`https://nepicobsv-hash.github.io` や
+  `https://example.com` には Access-Control-Allow-Origin を返さない）
+- panda / infinitedrive はどの Origin にも CORS ヘッダを返さない
+
+つまり **公開ウェブサイトからは HTTP fetch で CometBFT を読めない**。
+解決策として、CometBFT の **WebSocket 版 JSON-RPC**（`wss://<host>/websocket`）を使う。
+WebSocket は CORS の対象外で、github.io の Origin 付きハンドシェイクが3ホスト全てで
+成功すること、全メソッド（status/block/blockchain/block_results/validators/tx/tx_search）が
+WS で応答することを実測済み。サイト側の使い分け:
+
+- GitHub Pages / file:// など通常の開き方 → WebSocket を優先
+- localhost（server.mjs）で開いた場合 → 同梱プロキシ（HTTP）を優先し、WS を予備にする
 
 EVM RPC（`evm-rpc.infinitepanda.xyz` / `evm-rpc-infinite.mschihuahua.org` /
 `evm-rpc.infinitedrive.xyz`）は全て CORS `*` でブラウザ直読み可。
