@@ -1,0 +1,97 @@
+{
+ "source": "~/workspace/42-flowmap/validators.json (staking precompile bonded set snapshot, 2026-10-31)",
+ "validators": [
+  {
+   "moniker": "Luke",
+   "operator": "0x65b18070198ef86df379dd695ac8cb350cd2d03f"
+  },
+  {
+   "moniker": "farmer",
+   "operator": "0x46c7ca2e2ef5304cbf9baf5ae2a2ede7dcd5de41"
+  },
+  {
+   "moniker": "Woman-In-Red-42",
+   "operator": "0xc3cfec4aca0e2e4206185129a0ac3ed764d4bc03"
+  },
+  {
+   "moniker": "Metal Raptor",
+   "operator": "0x1077c77b5e56cea994e3f385e50f9ff4fa2e3514"
+  },
+  {
+   "moniker": "DRIVESTATS",
+   "operator": "0xad41107e260541c237d943487ea73f2040c7daf4"
+  },
+  {
+   "moniker": "vethawk",
+   "operator": "0xd9b87c57b772cd7cc41828b4fab4db056bc223af"
+  },
+  {
+   "moniker": "X",
+   "operator": "0xdb34ff92995c74d170755a563a1a2c35a3db4738"
+  },
+  {
+   "moniker": "PhoenixRing",
+   "operator": "0xfbbd8bd81226ac65d164bb6f7562122487e137b5"
+  },
+  {
+   "moniker": "HeraMoon",
+   "operator": "0x855df84e2867899a51d8a517156e1c89c55ce446"
+  },
+  {
+   "moniker": "Zap",
+   "operator": "0xa23ab42766559915e5a31910f4fb55e96eaad9fb"
+  },
+  {
+   "moniker": "ayc",
+   "operator": "0xc9edd828441f7c988819e4086777ca9b25feb2dc"
+  },
+  {
+   "moniker": "XenIt",
+   "operator": "0x9d6ed0365145ffda3216f6a3b81848f1d82faf99"
+  },
+  {
+   "moniker": "dudenode",
+   "operator": "0x7507ea4dd87222868a7b22f34efd5260c73c6ca3"
+  },
+  {
+   "moniker": "Popo",
+   "operator": "0x27dc6759b32216c79e1e3a57cd64415e4136ddbe"
+  },
+  {
+   "moniker": "panda42",
+   "operator": "0xc032b9c05386a81b0221a575db9cf666ebc30547"
+  },
+  {
+   "moniker": "FoxxOne",
+   "operator": "0xdd6349ae5fb83b9c79f6be5777044149f335e0b4"
+  },
+  {
+   "moniker": "Sirius Cybernetics",
+   "operator": "0xf5020c4320e97e029dd5e846bd77b11fd1ebb88d"
+  },
+  {
+   "moniker": "Xenia",
+   "operator": "0x63cdac6ee8746b47de9cd259ddadab8918f0f341"
+  },
+  {
+   "moniker": "light888",
+   "operator": "0xce702e79ea9ae38fb80ee8ee8f586b2195140fcb"
+  },
+  {
+   "moniker": "the_rider",
+   "operator": "0xd9e3b749214cf9f40a0377270b73bc9f6fc5384c"
+  },
+  {
+   "moniker": "CCUK",
+   "operator": "0x73fb550c4fb705719aab3ed7199c489ebccdfad1"
+  },
+  {
+   "moniker": "kimnmike",
+   "operator": "0xd3349cac126ce02ca481e6a1ae8cc8d3ad46aa4d"
+  },
+  {
+   "moniker": "DON'T PANIC - DEX",
+   "operator": "0x4e75d8bde2965ac4cfdf5a1d9b2f4d9b77b4181d"
+  }
+ ]
+}

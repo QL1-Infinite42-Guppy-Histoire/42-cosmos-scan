@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>42 Cosmos Scan — 42 Chain（Infinite）Cosmos側エクスプローラー</title>
+<style>
+  :root{
+    --bg:#0b0e1a; --panel:#141830; --panel2:#1a1f3d; --line:#2a3060;
+    --text:#e8eaf6; --sub:#9aa3c7; --accent:#7dd3fc; --accent2:#c4b5fd;
+    --ok:#4ade80; --ng:#f87171; --warn:#fbbf24;
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;font-size:15px;line-height:1.55}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  header{position:sticky;top:0;z-index:10;background:rgba(11,14,26,.92);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 16px}
+  .head-in{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 0}
+  .logo{font-weight:800;font-size:19px;letter-spacing:.02em;color:#fff;white-space:nowrap}
+  .logo small{display:block;font-weight:400;font-size:11px;color:var(--sub);letter-spacing:.04em}
+  .searchbox{display:flex;gap:8px;flex:1;min-width:260px}
+  .searchbox input{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 12px;font-size:14px;min-width:0}
+  .searchbox button,.btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 14px;font-size:14px;cursor:pointer}
+  .searchbox button:hover,.btn:hover{border-color:var(--accent)}
+  nav{display:flex;gap:16px;padding:0 0 10px;font-size:14px}
+  nav a{color:var(--sub)} nav a.on{color:#fff;font-weight:700}
+  main{padding:20px 0 40px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card .k{font-size:12px;color:var(--sub)}
+  .card .v{font-size:21px;font-weight:700;margin-top:2px;word-break:break-all}
+  .card .s{font-size:12px;color:var(--sub);margin-top:2px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:18px;overflow-x:auto}
+  .panel h2{font-size:16px;margin:0 0 12px}
+  .panel h3{font-size:14px;margin:18px 0 8px;color:var(--accent2)}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
+  th{ text-align:left;color:var(--sub);font-weight:600;border-bottom:1px solid var(--line);padding:7px 8px;white-space:nowrap}
+  td{border-bottom:1px solid #1e2347;padding:7px 8px;vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .mono{font-family:var(--mono);font-size:12.5px;word-break:break-all}
+  .sub{color:var(--sub)} .small{font-size:12px}
+  .ok{color:var(--ok)} .ng{color:var(--ng)} .warn{color:var(--warn)}
+  .pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:12px;color:var(--sub);white-space:nowrap}
+  .pill.cosmos{color:var(--accent2);border-color:#4c3a8a}
+  .pill.evm{color:var(--accent);border-color:#1e4b66}
+  .msgbox{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--panel2)}
+  .msgbox .type{font-weight:700;font-size:14px}
+  dl{display:grid;grid-template-columns:170px 1fr;gap:4px 14px;margin:0;font-size:13.5px}
+  dt{color:var(--sub)} dd{margin:0;word-break:break-all}
+  .err{background:#3a1420;border:1px solid #7f1d2e;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:14px}
+  .note{background:#2a230f;border:1px solid #71590f;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13.5px}
+  .spin{color:var(--sub)}
+  details{margin-top:10px} summary{cursor:pointer;color:var(--sub);font-size:13px}
+  footer{border-top:1px solid var(--line);padding:16px 0 28px;color:var(--sub);font-size:12.5px}
+  .amt{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .right{text-align:right}
+  @media (max-width:640px){ dl{grid-template-columns:120px 1fr} table{min-width:480px} }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="head-in">
+      <a class="logo" href="#/" style="text-decoration:none">42 Cosmos Scan<small>42 Chain（Infinite）Cosmos側エクスプローラー · ローカル版 Phase 1</small></a>
+      <form class="searchbox" id="searchForm">
+        <input id="searchInput" type="text" placeholder="ブロック高さ / Txハッシュ / infinite1… / 0x… で検索" autocomplete="off" spellcheck="false">
+        <button type="submit">検索</button>
+      </form>
+    </div>
+    <nav>
+      <a href="#/" data-nav="home">ホーム</a>
+      <a href="#/validators" data-nav="validators">バリデーター</a>
+      <a href="https://scan.infinitedrive.xyz" target="_blank" rel="noopener">EVM側エクスプローラー ↗</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap"><div id="app"><p class="spin">読み込み中…</p></div></main>
+<footer>
+  <div class="wrap">
+    <div id="footStatus">接続先を確認中…</div>
+    <div style="margin-top:6px">
+      データ元: CometBFT RPC（Cosmos側のブロック・Tx・バリデーター集合）と EVM RPC + ステーキングプリコンパイル 0x0800（残高・モニカー・委任）。
+      Cosmos REST（LCD）はこのチェーンでは公式に公開されていないため使っていません。
+      金額は基軸通貨 drop（18 decimals）を [42] に換算して表示しています。デコードできないメッセージ型は「未対応の型」と正直に表示します。
+    </div>
+  </div>
+</footer>
+<script>
+"use strict";
+/* ================================================================
+   42 Cosmos Scan (Phase 1, local)
+   Chain: infinite_421018-1 / bech32 prefix "infinite" / base denom "drop" (18 decimals, display [42])
+   Sources (all verified live 2026-11-01):
+     - CometBFT RPC https://comet-rpc-infinite.mschihuahua.org  (the ONLY one of the 3 known
+       CometBFT endpoints that returns CORS headers a browser can use; the other two,
+       comet-rpc.infinitedrive.xyz / comet-rpc.infinitepanda.xyz, answer curl but send no
+       Access-Control-Allow-Origin, so browsers block them. Via the bundled server.mjs
+       same-origin proxy they become usable too.)
+     - EVM RPC https://evm-rpc.infinitepanda.xyz etc. (CORS: *)
+     - Staking precompile 0x0000000000000000000000000000000000000800 via EVM RPC
+   ================================================================ */
+
+/* ---------------- generic utils ---------------- */
+const $app = document.getElementById('app');
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function fmtTime(iso){
+  if(!iso) return '-';
+  const m = String(iso).match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/);
+  const d = new Date(m ? m[1] + (m[2] ? m[2].slice(0,4) : '') + (m[3] || 'Z') : iso);
+  if(isNaN(d)) return esc(iso);
+  return d.toLocaleString('ja-JP', { timeZone:'Asia/Tokyo', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false }) + ' JST';
+}
+function fmtAgo(iso){
+  const d = new Date(String(iso).replace(/(\.\d{3})\d+/, '$1'));
+  if(isNaN(d)) return '';
+  const s = Math.max(0, Math.round((Date.now() - d.getTime())/1000));
+  if(s < 60) return s + '秒前';
+  if(s < 3600) return Math.floor(s/60) + '分前';
+  if(s < 86400) return Math.floor(s/3600) + '時間前';
+  return Math.floor(s/86400) + '日前';
+}
+/* drop (integer string, 18 decimals) -> "[42]" display */
+function fmt42(dropStr){
+  let v; try { v = BigInt(String(dropStr).split('.')[0]); } catch { return String(dropStr); }
+  const neg = v < 0n; if(neg) v = -v;
+  const base = 10n**18n;
+  const whole = v / base, frac = v % base;
+  let fracS = frac.toString().padStart(18,'0').replace(/0+$/,'');
+  let out;
+  if(fracS.length > 6 && whole > 0n) fracS = fracS.slice(0,6);
+  out = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (fracS ? '.' + fracS : '');
+  return (neg ? '-' : '') + out;
+}
+const amtHtml = (dropStr) => `<span class="amt" title="${esc(String(dropStr))} drop">${esc(fmt42(dropStr))} [42]</span>`;
+const coinHtml = (c) => !c ? '-' : (c.denom === 'drop' ? amtHtml(c.amount) : `<span class="amt">${esc(c.amount)} ${esc(c.denom)}</span>`);
+const shortHash = (h, n=10) => h && h.length > n*2+3 ? h.slice(0,n) + '…' + h.slice(-n) : h;
+const shortAddr = (a) => !a ? '-' : (a.length > 26 ? a.slice(0,14) + '…' + a.slice(-8) : a);
+
+/* ---------------- SHA-256 (pure JS; needed for tx hash = sha256(raw tx) and
+   consensus address = sha256(ed25519 pubkey)[0:20], both verified against live data) ---------------- */
+function sha256(bytes){
+  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  let h0=0x6a09e667,h1=0xbb67ae85,h2=0x3c6ef372,h3=0xa54ff53a,h4=0x510e527f,h5=0x9b05688c,h6=0x1f83d9ab,h7=0x5be0cd19;
+  const l=bytes.length;
+  const withPad = new Uint8Array((Math.floor((l+8)/64)+1)*64);
+  withPad.set(bytes); withPad[l]=0x80;
+  const dv=new DataView(withPad.buffer);
+  dv.setUint32(withPad.length-4, (l*8)>>>0); dv.setUint32(withPad.length-8, Math.floor(l/0x20000000));
+  const w=new Uint32Array(64);
+  const rotr=(x,n)=>(x>>>n)|(x<<(32-n));
+  for(let blk=0; blk<withPad.length; blk+=64){
+    for(let i=0;i<16;i++) w[i]=dv.getUint32(blk+i*4);
+    for(let i=16;i<64;i++){ const s0=rotr(w[i-15],7)^rotr(w[i-15],18)^(w[i-15]>>>3); const s1=rotr(w[i-2],17)^rotr(w[i-2],19)^(w[i-2]>>>10); w[i]=(w[i-16]+s0+w[i-7]+s1)|0; }
+    let a=h0,b=h1,c=h2,d=h3,e=h4,f=h5,g=h6,h=h7;
+    for(let i=0;i<64;i++){
+      const S1=rotr(e,6)^rotr(e,11)^rotr(e,25); const ch=(e&f)^(~e&g); const t1=(h+S1+ch+K[i]+w[i])|0;
+      const S0=rotr(a,2)^rotr(a,13)^rotr(a,22); const mj=(a&b)^(a&c)^(b&c); const t2=(S0+mj)|0;
+      h=g; g=f; f=e; e=(d+t1)|0; d=c; c=b; b=a; a=(t1+t2)|0;
+    }
+    h0=(h0+a)|0; h1=(h1+b)|0; h2=(h2+c)|0; h3=(h3+d)|0; h4=(h4+e)|0; h5=(h5+f)|0; h6=(h6+g)|0; h7=(h7+h)|0;
+  }
+  const out=new Uint8Array(32); const odv=new DataView(out.buffer);
+  [h0,h1,h2,h3,h4,h5,h6,h7].forEach((v,i)=>odv.setUint32(i*4, v>>>0));
+  return out;
+}
+const bytesToHex = (b) => [...b].map((x)=>x.toString(16).padStart(2,'0')).join('');
+const hexToBytes = (h) => { const s=h.replace(/^0x/,''); const out=new Uint8Array(s.length/2); for(let i=0;i<out.length;i++) out[i]=parseInt(s.substr(i*2,2),16); return out; };
+const b64ToBytes = (b64) => Uint8Array.from(atob(b64), (c)=>c.charCodeAt(0));
+const bytesToB64 = (b) => btoa(String.fromCharCode(...b));
+
+/* ---------------- bech32 (BIP-173) ---------------- */
+const B32='qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+function b32Polymod(values){ const GEN=[0x3b6a57b2,0x26508e6d,0x1ea119fa,0x3d4233dd,0x2a1462b3]; let chk=1; for(const v of values){ const b=chk>>25; chk=((chk&0x1ffffff)<<5)^v; for(let i=0;i<5;i++) if((b>>i)&1) chk^=GEN[i]; } return chk; }
+function b32HrpExpand(hrp){ const out=[]; for(const c of hrp) out.push(c.charCodeAt(0)>>5); out.push(0); for(const c of hrp) out.push(c.charCodeAt(0)&31); return out; }
+function convertBits(data, from, to, pad=true){ let acc=0,bits=0; const out=[]; const maxv=(1<<to)-1; for(const v of data){ acc=(acc<<from)|v; bits+=from; while(bits>=to){ bits-=to; out.push((acc>>bits)&maxv); } } if(pad && bits>0) out.push((acc<<(to-bits))&maxv); return out; }
+function bech32Encode(hrp, bytes20){
+  const data=convertBits(bytes20,8,5);
+  const pm=b32Polymod([...b32HrpExpand(hrp),...data,0,0,0,0,0,0])^1;
+  const cs=[0,1,2,3,4,5].map((i)=>(pm>>(5*(5-i)))&31);
+  return hrp+'1'+[...data,...cs].map((d)=>B32[d]).join('');
+}
+function bech32Decode(str){
+  const s=str.trim().toLowerCase();
+  const pos=s.lastIndexOf('1'); if(pos<1) throw new Error('bech32形式ではありません');
+  const hrp=s.slice(0,pos);
+  const vals=[...s.slice(pos+1)].map((c)=>{ const i=B32.indexOf(c); if(i<0) throw new Error('bech32の文字が不正です'); return i; });
+  if(b32Polymod([...b32HrpExpand(hrp),...vals])!==1) throw new Error('bech32のチェックサムが合いません');
+  const payload=convertBits(vals.slice(0,vals.length-6),5,8,false);
+  return { hrp, bytes:new Uint8Array(payload) };
+}
+const bechToHex = (bech) => { const {bytes}=bech32Decode(bech); if(bytes.length!==20) throw new Error('20バイトのアドレスではありません'); return '0x'+bytesToHex(bytes); };
+const hexToBech = (hex, hrp='infinite') => bech32Encode(hrp, hexToBytes(hex));
+function anyAddrToHex(input){
+  const s=input.trim();
+  if(/^0x[0-9a-fA-F]{40}$/.test(s)) return s.toLowerCase();
+  if(/^(infinite|infinitevaloper)1[0-9a-z]+$/.test(s.toLowerCase())) return bechToHex(s);
+  throw new Error('アドレス形式が分かりません（infinite1… / infinitevaloper1… / 0x… のいずれか）');
+}
+
+/* ---------------- protobuf (minimal, wire-format only) ---------------- */
+function pbVarint(b, i){ let shift=0n, res=0n; while(true){ const x=b[i++]; res |= BigInt(x&0x7f)<<shift; shift+=7n; if(!(x&0x80)) break; } return [res, i]; }
+function pbFields(b){
+  const out=[]; let i=0;
+  while(i<b.length){
+    let key; [key, i]=pbVarint(b,i);
+    const num=Number(key>>3n), wt=Number(key&7n);
+    if(wt===0){ let v; [v,i]=pbVarint(b,i); out.push({num,wt,val:v}); }
+    else if(wt===2){ let len; [len,i]=pbVarint(b,i); const v=b.subarray(i, i+Number(len)); i+=Number(len); out.push({num,wt,val:v}); }
+    else if(wt===1){ out.push({num,wt,val:b.subarray(i,i+8)}); i+=8; }
+    else if(wt===5){ out.push({num,wt,val:b.subarray(i,i+4)}); i+=4; }
+    else throw new Error('unknown wire type '+wt);
+  }
+  return out;
+}
+const pbGet = (fields,num) => fields.filter((f)=>f.num===num);
+const pbStr = (f) => f ? new TextDecoder().decode(f.val) : null;
+function pbCoin(f){ if(!f) return null; const fs=pbFields(f.val); return { denom: pbStr(pbGet(fs,1)[0]), amount: pbStr(pbGet(fs,2)[0]) }; }
+
+/* Decode a Cosmos Tx (TxRaw) into { messages:[{typeUrl, body}], memo, fee:{coins,gasLimit}, sequences }
+   Message body decoding happens in decodeMessage(). */
+function decodeTxRaw(rawBytes){
+  const raw=pbFields(rawBytes);
+  const bodyBytes=pbGet(raw,1)[0]?.val, authBytes=pbGet(raw,2)[0]?.val;
+  const out={ messages:[], memo:'', fee:null, sequences:[] };
+  if(bodyBytes){
+    const body=pbFields(bodyBytes);
+    for(const mf of pbGet(body,1)){
+      const any=pbFields(mf.val);
+      out.messages.push({ typeUrl: pbStr(pbGet(any,1)[0]), body: pbGet(any,2)[0]?.val ?? new Uint8Array(0) });
+    }
+    out.memo = pbStr(pbGet(body,2)[0]) || '';
+  }
+  if(authBytes){
+    const auth=pbFields(authBytes);
+    for(const si of pbGet(auth,1)){
+      const sif=pbFields(si.val);
+      const seq=pbGet(sif,3)[0]; if(seq) out.sequences.push(seq.val.toString());
+    }
+    const feeF=pbGet(auth,2)[0];
+    if(feeF){
+      const fee=pbFields(feeF.val);
+      out.fee={ coins: pbGet(fee,1).map(pbCoin), gasLimit: pbGet(fee,2)[0]?.val?.toString() ?? null, payer: pbStr(pbGet(fee,3)[0]) };
+    }
+  }
+  return out;
+}
+/* ---------------- RPC clients ---------------- */
+const isLocalHttp = (location.protocol==='http:'||location.protocol==='https:') && ['localhost','127.0.0.1'].includes(location.hostname);
+let cometBases = isLocalHttp
+  ? ['/comet-rpc', 'https://comet-rpc-infinite.mschihuahua.org']
+  : ['https://comet-rpc-infinite.mschihuahua.org'];
+let cometBaseUsed = null;
+let evmBases = isLocalHttp
+  ? ['/evm-rpc', 'https://evm-rpc.infinitepanda.xyz', 'https://evm-rpc-infinite.mschihuahua.org']
+  : ['https://evm-rpc.infinitepanda.xyz', 'https://evm-rpc-infinite.mschihuahua.org', 'https://evm-rpc.infinitedrive.xyz'];
+async function jsonRpc(url, method, params, timeoutMs=20000){
+  const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(), timeoutMs);
+  try{
+    const r=await fetch(url, { method:'POST', signal:ctl.signal, headers:{'Content-Type':'application/json'}, body: JSON.stringify({jsonrpc:'2.0', id:1, method, params}) });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json();
+    if(j.error) throw new Error(j.error.data || j.error.message || JSON.stringify(j.error));
+    return j.result;
+  } finally { clearTimeout(t); }
+}
+/* CometBFT nodes occasionally drop connections (esp. tx_search): retry across bases with spacing. */
+async function comet(method, params, tries=3){
+  let lastErr;
+  for(let a=0; a<tries; a++){
+    for(const base of cometBases){
+      try{
+        const res=await jsonRpc(base, method, params, method==='tx_search'?30000:20000);
+        cometBaseUsed=base; updateFoot(); return res;
+      }catch(e){ lastErr=e; }
+    }
+    if(a<tries-1) await sleep(900*(a+1));
+  }
+  throw lastErr || new Error('CometBFT RPCに接続できませんでした');
+}
+async function evm(method, params){
+  let lastErr;
+  for(const base of evmBases){
+    try{ return await jsonRpc(base, method, params); }catch(e){ lastErr=e; }
+  }
+  throw lastErr || new Error('EVM RPCに接続できませんでした');
+}
+function updateFoot(){
+  const el=document.getElementById('footStatus');
+  if(el && cometBaseUsed){
+    const label = cometBaseUsed.startsWith('/') ? 'ローカルプロキシ（server.mjs経由）' : cometBaseUsed;
+    el.textContent='接続中の CometBFT RPC: '+label+' ／ チェーン: infinite_421018-1';
+  }
+}
+/* CometBFT /tx wants the hash as base64 of the raw hash bytes (passing hex gets base64-decoded garbage — verified). */
+const txHashParam = (hexHash) => bytesToB64(hexToBytes(hexHash.replace(/^0x/,'')));
+
+/* ---------------- staking precompile 0x0800 (via EVM RPC) ----------------
+   ABI encoding/decoding done by hand, following the pattern already proven in
+   ~/workspace/42-bubblemap/fetch-data.mjs (validators) and verified live for
+   delegation() on 2026-11-01 (selector 0x241774e6; returned balance matched
+   the account's on-chain delegation). */
+const PRECOMPILE='0x0000000000000000000000000000000000000800';
+const wordHex=(n)=>BigInt(n).toString(16).padStart(64,'0');
+function encodeValidatorsCall(){
+  const status=new TextEncoder().encode('BOND_STATUS_BONDED');
+  let data='0x186b2167';
+  data+=wordHex(64)+wordHex(128);
+  data+=wordHex(status.length)+bytesToHex(status).padEnd(64,'0');
+  data+=wordHex(160)+wordHex(0)+wordHex(100)+wordHex(1)+wordHex(0);
+  data+=wordHex(0);
+  return data;
+}
+const wordAtHex=(hex, off)=>BigInt('0x'+hex.substr(off*2,64));
+function readStrHex(hex, off){
+  const len=Number(wordAtHex(hex, off));
+  return new TextDecoder().decode(hexToBytes(hex.substr((off+32)*2, len*2)));
+}
+async function fetchPrecompileValidators(){
+  const result=await evm('eth_call', [{ to:PRECOMPILE, data:encodeValidatorsCall() }, 'latest']);
+  const hex=result.replace(/^0x/,'');
+  const arrOff=Number(wordAtHex(hex,0));
+  const count=Number(wordAtHex(hex,arrOff));
+  const out=[];
+  for(let i=0;i<count;i++){
+    const t=arrOff+32+Number(wordAtHex(hex, arrOff+32+i*32));
+    const operator=readStrHex(hex, t+Number(wordAtHex(hex,t)));
+    const pubkey=readStrHex(hex, t+Number(wordAtHex(hex,t+32)));
+    const descStart=t+Number(wordAtHex(hex,t+6*32));
+    const moniker=readStrHex(hex, descStart+Number(wordAtHex(hex,descStart)));
+    const consBytes=sha256(b64ToBytes(pubkey));
+    out.push({
+      moniker, operator,
+      operatorHex: operator.startsWith('0x') ? operator.toLowerCase() : bechToHex(operator),
+      valoper: operator.startsWith('0x') ? hexToBech(operator,'infinitevaloper') : operator,
+      consensusAddress: bytesToHex(consBytes.subarray(0,20)).toUpperCase(),
+      jailed: wordAtHex(hex,t+2*32)!==0n,
+      status: Number(wordAtHex(hex,t+3*32)),
+      tokens: wordAtHex(hex,t+4*32).toString(),
+      commission: wordAtHex(hex,t+9*32).toString(), /* Dec: raw / 1e18 = fraction */
+    });
+  }
+  return out;
+}
+function encodeDelegationCall(delegatorHex, valoper){
+  const s=new TextEncoder().encode(valoper);
+  let data='0x241774e6';
+  data+=delegatorHex.replace(/^0x/,'').padStart(64,'0');
+  data+=wordHex(64);
+  data+=wordHex(s.length)+bytesToHex(s).padEnd(Math.ceil(s.length/32)*64,'0');
+  return data;
+}
+async function fetchDelegation(delegatorHex, valoper){
+  const result=await evm('eth_call', [{ to:PRECOMPILE, data:encodeDelegationCall(delegatorHex, valoper) }, 'latest']);
+  const hex=result.replace(/^0x/,'');
+  if(hex.length<128) return null;
+  const coinOff=Number(wordAtHex(hex,32));
+  const denomOff=Number(wordAtHex(hex,coinOff));
+  const amount=wordAtHex(hex,coinOff+32).toString();
+  const denom=readStrHex(hex, coinOff+denomOff);
+  return { denom, amount };
+}
+
+/* ---------------- Cosmos message decoding ----------------
+   Field layouts verified against live txs on 2026-11-01 for:
+   MsgSend, MsgDelegate, MsgUndelegate, MsgBeginRedelegate,
+   MsgWithdrawDelegatorReward, MsgWithdrawValidatorCommission.
+   Anything else is shown honestly as 未対応 (type URL + events still shown). */
+function decodeMessage(msg){
+  const f=pbFields(msg.body);
+  const str=(n)=>pbStr(pbGet(f,n)[0]);
+  switch(msg.typeUrl){
+    case '/cosmos.bank.v1beta1.MsgSend':
+      return { kind:'銀行送金', rows:[['送信者', addrLink(str(1))],['受信者', addrLink(str(2))],['金額', pbGet(f,3).map((c)=>coinHtml(pbCoin(c))).join('<br>')]] };
+    case '/cosmos.bank.v1beta1.MsgMultiSend': {
+      const io=(fld)=>pbGet(f,fld).map((e)=>{ const ef=pbFields(e.val); return esc(pbStr(pbGet(ef,1)[0]))+' ← '+pbGet(ef,2).map((c)=>coinHtml(pbCoin(c))).join(', '); }).join('<br>');
+      return { kind:'一括送金（MultiSend）', rows:[['入力', io(1)],['出力', io(2)]] };
+    }
+    case '/cosmos.staking.v1beta1.MsgDelegate':
+      return { kind:'ステーキング（委任）', rows:[['委任者', addrLink(str(1))],['バリデーター', valLink(str(2))],['金額', coinHtml(pbCoin(pbGet(f,3)[0]))]] };
+    case '/cosmos.staking.v1beta1.MsgUndelegate':
+      return { kind:'委任の解除（アンボンド開始）', rows:[['委任者', addrLink(str(1))],['バリデーター', valLink(str(2))],['金額', coinHtml(pbCoin(pbGet(f,3)[0]))],['解除完了まで','約21日（ステーキングパラメータ）']] };
+    case '/cosmos.staking.v1beta1.MsgBeginRedelegate':
+      return { kind:'再委任（バリデーター変更）', rows:[['委任者', addrLink(str(1))],['元のバリデーター', valLink(str(2))],['新しいバリデーター', valLink(str(3))],['金額', coinHtml(pbCoin(pbGet(f,4)[0]))]] };
+    case '/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward':
+      return { kind:'報酬の請求（委任者）', rows:[['委任者', addrLink(str(1))],['バリデーター', valLink(str(2))]] };
+    case '/cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission':
+      return { kind:'報酬の請求（バリデーター手数料）', rows:[['バリデーター', valLink(str(1))]] };
+    case '/cosmos.evm.vm.v1.MsgEthereumTx':
+      return { kind:'EVM トランザクション', rows:[['詳細','この取引の中身は EVM 側のものです。下のイベント欄に EVM Tx ハッシュがあれば、EVM側エクスプローラーで開けます。']] , evmNote:true };
+    default:
+      return { kind:null, rows:[['メッセージ型', '<span class="mono">'+esc(msg.typeUrl)+'</span>'],['状態','未対応の型です（Phase 1ではデコードしていません）。下のイベント欄で資金の動きは確認できます。']] };
+  }
+}
+function addrLink(bech){
+  if(!bech) return '-';
+  let hex=null; try{ hex=bechToHex(bech); }catch{}
+  const inner=esc(shortAddr(bech))+(hex?' <span class="sub small">('+esc(hex.slice(0,10))+'…'+esc(hex.slice(-4))+')</span>':'');
+  return `<a href="#/address/${esc(bech)}" title="${esc(bech)}">${inner}</a>`;
+}
+function valLink(valoper){
+  if(!valoper) return '-';
+  const v=validatorByValoper(valoper);
+  const label=v? esc(v.moniker)+' ' : '';
+  let hex=null; try{ hex=bechToHex(valoper); }catch{}
+  const tail=esc(valoper.slice(0,18))+'…'+esc(valoper.slice(-6));
+  return `${label}<a href="#/address/${esc(valoper)}" title="${esc(valoper)}"><span class="mono small">${tail}</span></a>${hex?'':''}`;
+}
+/* validator caches (moniker joins) */
+let precompileValidatorsCache=null;
+async function getPrecompileValidators(){
+  if(precompileValidatorsCache) return precompileValidatorsCache;
+  try{ precompileValidatorsCache=await fetchPrecompileValidators(); }
+  catch(e){
+    try{
+      const snap=await (await fetch('validators-snapshot.json')).json();
+      precompileValidatorsCache=snap.validators.map((v)=>({ moniker:v.moniker, operator:v.operator, operatorHex:v.operator.toLowerCase(), valoper:hexToBech(v.operator,'infinitevaloper'), consensusAddress:null, tokens:null, commission:null, snapshot:true }));
+    }catch{ precompileValidatorsCache=[]; }
+  }
+  return precompileValidatorsCache;
+}
+function validatorByValoper(valoper){ return (precompileValidatorsCache||[]).find((v)=>v.valoper===valoper) || null; }
+function validatorByConsensus(consAddr){ return (precompileValidatorsCache||[]).find((v)=>v.consensusAddress===consAddr) || null; }
+function validatorByOperatorHex(hex){ return (precompileValidatorsCache||[]).find((v)=>v.operatorHex===hex?.toLowerCase()) || null; }
+function proposerHtml(consAddr){
+  const v=validatorByConsensus(consAddr);
+  if(v) return `<a href="#/address/${esc(v.operatorHex)}">${esc(v.moniker)}</a> <span class="mono sub small">${esc(consAddr.slice(0,10))}…</span>`;
+  return `<span class="mono">${esc(consAddr)}</span>`;
+}
+
+/* ---------------- views ---------------- */
+function errBox(e, hint){
+  return `<div class="err"><b>読み込めませんでした。</b><br>${esc(e.message||e)}${hint?'<br><span class="small">'+hint+'</span>':''}</div>`;
+}
+const PROXY_HINT='CometBFT の公開エンドポイントは不安定なことがあります。ローカルで <span class="mono">node server.mjs</span> で起動すると同梱プロキシ経由（CORS回避＋別エンドポイント）で安定します。少し待って再読み込みも有効です。';
+
+async function viewHome(){
+  document.title='42 Cosmos Scan — 42 Chain Cosmos側エクスプローラー';
+  setNav('home');
+  $app.innerHTML=`<div class="cards" id="statCards"><div class="card"><div class="k">読み込み中…</div></div></div>
+  <div class="panel"><h2>最新ブロック</h2><div id="latestBlocks"><p class="spin">読み込み中…</p></div>
+  <label class="small sub"><input type="checkbox" id="autoRefresh" checked> 20秒ごとに自動更新</label></div>
+  <div class="panel"><h2>最近の Cosmos メッセージ（銀行送金・委任）</h2><div id="recentCosmos"><p class="spin">読み込み中…（tx_search は時間がかかることがあります）</p></div></div>`;
+  getPrecompileValidators(); /* warm moniker cache */
+  try{
+    const st=await comet('status',{});
+    const latest=Number(st.sync_info.latest_block_height);
+    const metas=(await comet('blockchain',{minHeight:String(Math.max(1,latest-19)), maxHeight:String(latest)})).block_metas||[];
+    const times=metas.map((m)=>new Date(String(m.header.time).replace(/(\.\d{3})\d+/,'$1')).getTime()).filter(Boolean);
+    const avgGap=times.length>1? ((Math.max(...times)-Math.min(...times))/(times.length-1)/1000).toFixed(1):null;
+    document.getElementById('statCards').innerHTML=`
+      <div class="card"><div class="k">最新ブロック</div><div class="v">#${latest.toLocaleString()}</div><div class="s">${fmtTime(st.sync_info.latest_block_time)}（${fmtAgo(st.sync_info.latest_block_time)}）</div></div>
+      <div class="card"><div class="k">チェーン</div><div class="v" style="font-size:16px">${esc(st.node_info.network)}</div><div class="s">CometBFT ${esc(st.node_info.version)} ／ ノード: ${esc(st.node_info.moniker)}</div></div>
+      <div class="card"><div class="k">平均ブロック間隔（直近20件）</div><div class="v">${avgGap? avgGap+' 秒':'-'}</div><div class="s">ジェネシス（高さ1）からの全履歴あり</div></div>
+      <div class="card"><div class="k">コンセンサス・バリデーター</div><div class="v" id="statVals">…</div><div class="s"><a href="#/validators">一覧を見る</a></div></div>`;
+    comet('validators',{height:String(latest), page:'1', per_page:'1'}).then((v)=>{ const el=document.getElementById('statVals'); if(el) el.textContent=v.total+' 件'; }).catch(()=>{});
+    const rows=metas.map((m)=>`<tr>
+      <td><a href="#/block/${m.header.height}">#${Number(m.header.height).toLocaleString()}</a></td>
+      <td>${fmtTime(m.header.time)}<br><span class="sub small">${fmtAgo(m.header.time)}</span></td>
+      <td>${proposerHtml(m.header.proposer_address)}</td>
+      <td class="right">${m.num_txs}</td>
+      <td class="mono sub">${esc(shortHash(m.block_id.hash,8))}</td></tr>`).join('');
+    document.getElementById('latestBlocks').innerHTML=`<table><tr><th>高さ</th><th>時刻</th><th>提案者</th><th class="right">Tx数</th><th>ハッシュ</th></tr>${rows}</table>`;
+  }catch(e){
+    document.getElementById('statCards').innerHTML='';
+    document.getElementById('latestBlocks').innerHTML=errBox(e, PROXY_HINT);
+  }
+  loadRecentCosmos();
+  clearInterval(window.__homeTimer);
+  window.__homeTimer=setInterval(()=>{ const c=document.getElementById('autoRefresh'); const h=location.hash; if(c&&c.checked&&(h===''||h==='#'||h==='#/')) viewHomeSoft(); },20000);
+}
+async function viewHomeSoft(){ if(!document.getElementById('latestBlocks')) return; try{ const st=await comet('status',{}); const latest=Number(st.sync_info.latest_block_height); const metas=(await comet('blockchain',{minHeight:String(Math.max(1,latest-19)), maxHeight:String(latest)})).block_metas||[]; const rows=metas.map((m)=>`<tr><td><a href="#/block/${m.header.height}">#${Number(m.header.height).toLocaleString()}</a></td><td>${fmtTime(m.header.time)}<br><span class="sub small">${fmtAgo(m.header.time)}</span></td><td>${proposerHtml(m.header.proposer_address)}</td><td class="right">${m.num_txs}</td><td class="mono sub">${esc(shortHash(m.block_id.hash,8))}</td></tr>`).join(''); const el=document.getElementById('latestBlocks'); if(el) el.innerHTML=`<table><tr><th>高さ</th><th>時刻</th><th>提案者</th><th class="right">Tx数</th><th>ハッシュ</th></tr>${rows}</table>`; }catch{} }
+async function loadRecentCosmos(){
+  const el=document.getElementById('recentCosmos'); if(!el) return;
+  try{
+    const q=(action)=>comet('tx_search',{query:`message.action='${action}'`, per_page:'5', page:'1', order_by:'desc'},2);
+    const sends=await q('/cosmos.bank.v1beta1.MsgSend');
+    await sleep(400);
+    const dels=await q('/cosmos.staking.v1beta1.MsgDelegate');
+    const all=[...(sends.txs||[]).map((t)=>({...t, _a:'銀行送金'})), ...(dels.txs||[]).map((t)=>({...t, _a:'委任'}))].sort((a,b)=>Number(b.height)-Number(a.height)).slice(0,10);
+    el.innerHTML=`<table style="min-width:480px"><tr><th>種類</th><th>Txハッシュ</th><th>ブロック</th><th>結果</th></tr>${all.map((t)=>`<tr><td><span class="pill cosmos">${t._a}</span></td><td class="mono"><a href="#/tx/${t.hash}">${esc(shortHash(t.hash))}</a></td><td><a href="#/block/${t.height}">#${Number(t.height).toLocaleString()}</a></td><td>${t.tx_result.code===0?'<span class="ok">成功</span>':'<span class="ng">失敗 (code '+t.tx_result.code+')</span>'}</td></tr>`).join('')}</table>
+    <p class="small sub">チェーン全体の件数（全履歴）: 銀行送金 ${esc(sends.total_count)} 件 ／ 委任 ${esc(dels.total_count)} 件（tx_search 集計）</p>`;
+  }catch(e){ el.innerHTML='<p class="sub small">最近の Cosmos メッセージは取得できませんでした（'+esc(e.message||e)+'）。ブロック一覧は上の通り表示できています。</p>'; }
+}
+
+async function viewBlock(height){
+  setNav('');
+  document.title='ブロック #'+height+' — 42 Cosmos Scan';
+  $app.innerHTML=`<div class="panel"><h2>ブロック #${Number(height).toLocaleString()}</h2><p class="spin">読み込み中…</p></div>`;
+  try{
+    await getPrecompileValidators();
+    const [b, br] = await Promise.all([ comet('block',{height:String(height)}), comet('block_results',{height:String(height)}).catch(()=>null) ]);
+    const blk=b.block, hdr=blk.header;
+    const txs=blk.data.txs||[];
+    const results=br?.txs_results||[];
+    const txRows=txs.map((txb64,i)=>{
+      const raw=b64ToBytes(txb64);
+      const hash=bytesToHex(sha256(raw)).toUpperCase();
+      let types='-'; try{ types=decodeTxRaw(raw).messages.map((m)=>msgLabel(m.typeUrl)).join('<br>')||'-'; }catch{}
+      const code=results[i]?.code;
+      return `<tr><td>${i}</td><td class="mono"><a href="#/tx/${hash}">${esc(shortHash(hash,12))}</a></td><td>${types}</td><td>${code===undefined?'-':code===0?'<span class="ok">成功</span>':'<span class="ng">失敗</span>'}</td></tr>`;
+    }).join('');
+    $app.innerHTML=`<div class="panel"><h2>ブロック #${Number(hdr.height).toLocaleString()}</h2>
+    <dl>
+      <dt>ブロックハッシュ</dt><dd class="mono">${esc(b.block_id.hash)}</dd>
+      <dt>時刻</dt><dd>${fmtTime(hdr.time)}（${fmtAgo(hdr.time)}）</dd>
+      <dt>提案者</dt><dd>${proposerHtml(hdr.proposer_address)}</dd>
+      <dt>チェーン</dt><dd>${esc(hdr.chain_id)}</dd>
+      <dt>Tx数</dt><dd>${txs.length}</dd>
+      <dt>署名したバリデーター</dt><dd>${(blk.last_commit?.signatures||[]).filter((s)=>s.block_id_flag===2).length} 件</dd>
+      <dt>前のブロック</dt><dd>${Number(hdr.height)>1?`<a href="#/block/${Number(hdr.height)-1}">#${(Number(hdr.height)-1).toLocaleString()}</a>`:''} <span class="mono sub">${esc(hdr.last_block_id?.hash||'')}</span></dd>
+      <dt>次のブロック</dt><dd><a href="#/block/${Number(hdr.height)+1}">#${(Number(hdr.height)+1).toLocaleString()}</a></dd>
+    </dl>
+    <h3>トランザクション（${txs.length}）</h3>
+    ${txs.length?`<table><tr><th>#</th><th>ハッシュ</th><th>メッセージ</th><th>結果</th></tr>${txRows}</table>`:'<p class="sub">このブロックに Tx はありません。</p>'}
+    </div>`;
+  }catch(e){ $app.innerHTML=errBox(e, PROXY_HINT); }
+}
+function msgLabel(typeUrl){
+  const map={'/cosmos.bank.v1beta1.MsgSend':'銀行送金','/cosmos.bank.v1beta1.MsgMultiSend':'一括送金','/cosmos.staking.v1beta1.MsgDelegate':'委任','/cosmos.staking.v1beta1.MsgUndelegate':'委任解除','/cosmos.staking.v1beta1.MsgBeginRedelegate':'再委任','/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward':'報酬請求','/cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission':'手数料報酬請求','/cosmos.evm.vm.v1.MsgEthereumTx':'EVM Tx'};
+  return map[typeUrl] ? esc(map[typeUrl])+' <span class="sub small">'+esc(typeUrl.split('.').pop())+'</span>' : '<span class="mono small">'+esc(typeUrl)+'</span>';
+}
+
+async function viewTx(hash){
+  setNav('');
+  const H=hash.replace(/^0x/,'').toUpperCase();
+  document.title='Tx '+shortHash(H)+' — 42 Cosmos Scan';
+  $app.innerHTML=`<div class="panel"><h2>トランザクション</h2><p class="spin">読み込み中…</p></div>`;
+  try{
+    await getPrecompileValidators();
+    let t;
+    try{ t=await comet('tx',{hash:txHashParam(H), prove:false}); }
+    catch(e){
+      $app.innerHTML=`<div class="err"><b>このハッシュの Cosmos Tx は見つかりませんでした。</b><br>${esc(e.message||e)}</div>
+      <div class="note">0x で始まる64桁のハッシュなら EVM 側の Tx の可能性があります: <a href="https://scan.infinitedrive.xyz/tx/0x${esc(H.toLowerCase())}" target="_blank" rel="noopener">EVM側エクスプローラーで開く ↗</a></div>`;
+      return;
+    }
+    const raw=b64ToBytes(t.tx);
+    const dec=decodeTxRaw(raw);
+    const res=t.tx_result;
+    const evGroups={};
+    for(const ev of res.events||[]){ const attrs={}; for(const a of ev.attributes||[]) attrs[a.key]=(attrs[a.key]?attrs[a.key]+', ':'')+a.value; (evGroups[ev.type]=evGroups[ev.type]||[]).push(attrs); }
+    const ethHashes=[...new Set((res.events||[]).filter((e)=>e.type==='ethereum_tx').flatMap((e)=>e.attributes.filter((a)=>a.key==='ethereumTxHash').map((a)=>a.value)))];
+    const msgHtml=dec.messages.map((m,i)=>{
+      const d=decodeMessage(m);
+      let extra='';
+      if(d.evmNote && ethHashes.length) extra=`<dt>EVM Tx ハッシュ</dt><dd class="mono">${ethHashes.map((h)=>`<a href="https://scan.infinitedrive.xyz/tx/${esc(h)}" target="_blank" rel="noopener">${esc(h)}</a>`).join('<br>')}</dd>`;
+      const title=d.kind? esc(d.kind)+' <span class="sub small mono">'+esc(m.typeUrl)+'</span>' : '未対応の型 <span class="sub small mono">'+esc(m.typeUrl)+'</span>';
+      return `<div class="msgbox"><div class="type">メッセージ ${i+1}: ${title}</div><dl style="margin-top:8px">${d.rows.map((r)=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('')}${extra}</dl></div>`;
+    }).join('');
+    const evHtml=Object.entries(evGroups).map(([type,list])=>`<h3>${esc(type)}（${list.length}）</h3>`+list.map((attrs)=>`<div class="mono small" style="margin-bottom:6px">${Object.entries(attrs).map(([k,v])=>esc(k)+': '+esc(v)).join('<br>')}</div>`).join('')).join('');
+    $app.innerHTML=`<div class="panel"><h2>トランザクション</h2>
+    <dl>
+      <dt>ハッシュ</dt><dd class="mono">${esc(t.hash)}</dd>
+      <dt>ブロック</dt><dd><a href="#/block/${t.height}">#${Number(t.height).toLocaleString()}</a>（ブロック内 ${t.index} 番目）</dd>
+      <dt>結果</dt><dd>${res.code===0?'<span class="ok">成功</span>':'<span class="ng">失敗（code '+res.code+'）</span>'}${res.log&&res.code!==0?' <span class="mono small">'+esc(String(res.log).slice(0,300))+'</span>':''}</dd>
+      <dt>手数料</dt><dd>${dec.fee? dec.fee.coins.map(coinHtml).join(', ')+(dec.fee.payer?'（支払者: '+esc(dec.fee.payer)+'）':'') : '-'}</dd>
+      <dt>ガス</dt><dd>使用 ${esc(res.gas_used)} / 上限 ${esc(res.gas_wanted)}${dec.fee?.gasLimit?'（Tx指定 '+esc(dec.fee.gasLimit)+'）':''}</dd>
+      ${dec.memo?`<dt>メモ</dt><dd>${esc(dec.memo)}</dd>`:''}
+      ${dec.sequences.length?`<dt>署名者シーケンス</dt><dd>${dec.sequences.map(esc).join(', ')}</dd>`:''}
+    </dl>
+    <h3>メッセージ（${dec.messages.length}）</h3>${msgHtml||'<p class="sub">メッセージがありません。</p>'}
+    <details><summary>イベント（${(res.events||[]).length}件）を表示</summary>${evHtml}</details>
+    </div>`;
+  }catch(e){ $app.innerHTML=errBox(e, PROXY_HINT); }
+}
+
+async function viewValidators(){
+  setNav('validators');
+  document.title='バリデーター — 42 Cosmos Scan';
+  $app.innerHTML=`<div class="panel"><h2>バリデーター</h2><p class="spin">読み込み中…</p></div>`;
+  try{
+    const st=await comet('status',{});
+    const latest=st.sync_info.latest_block_height;
+    const [cv, pv] = await Promise.all([ comet('validators',{height:String(latest), page:'1', per_page:'100'}), getPrecompileValidators() ]);
+    const totalPower=(cv.validators||[]).reduce((s,v)=>s+Number(v.voting_power),0);
+    const rows=(cv.validators||[]).slice().sort((a,b)=>Number(b.voting_power)-Number(a.voting_power)).map((v,i)=>{
+      const p=validatorByConsensus(v.address);
+      const share=totalPower? (Number(v.voting_power)/totalPower*100).toFixed(2):'-';
+      return `<tr><td>${i+1}</td>
+      <td>${p?`<a href="#/address/${esc(p.operatorHex)}"><b>${esc(p.moniker)}</b></a>`:'<span class="sub">（名称不明）</span>'}</td>
+      <td class="right">${Number(v.voting_power).toLocaleString()}<br><span class="sub small">${share}%</span></td>
+      <td class="right">${p&&p.tokens? amtHtml(p.tokens):'<span class="sub">-</span>'}</td>
+      <td class="right">${p&&p.commission? (Number(BigInt(p.commission))/1e16).toFixed(2).replace(/\.?0+$/,'')+' %':'<span class="sub">-</span>'}</td>
+      <td class="mono small">${p? esc(shortAddr(p.operatorHex))+'<br><span class="sub">'+esc(p.valoper.slice(0,20))+'…</span>' : esc(v.address)}</td></tr>`;
+    }).join('');
+    $app.innerHTML=`<div class="panel"><h2>コンセンサス・バリデーター（ブロック #${Number(latest).toLocaleString()} 時点）</h2>
+    <p class="small sub">投票力は CometBFT のコンセンサス集合から、モニカー・運営者アドレス・ステーク総量・手数料率はステーキングプリコンパイル（0x0800）から取得し、公開鍵のハッシュで結合しています。合計投票力 ${totalPower.toLocaleString()}。</p>
+    <table><tr><th>#</th><th>モニカー</th><th class="right">投票力（割合）</th><th class="right">ステーク総量</th><th class="right">手数料率</th><th>運営者</th></tr>${rows}</table></div>`;
+  }catch(e){ $app.innerHTML=errBox(e, PROXY_HINT); }
+}
+
+async function viewAddress(input){
+  setNav('');
+  let hex, bech, valoper;
+  try{
+    hex=anyAddrToHex(input);
+    bech=hexToBech(hex,'infinite'); valoper=hexToBech(hex,'infinitevaloper');
+  }catch(e){ $app.innerHTML=errBox(e); return; }
+  document.title=shortAddr(bech)+' — 42 Cosmos Scan';
+  await getPrecompileValidators();
+  const valInfo=validatorByOperatorHex(hex);
+  $app.innerHTML=`<div class="panel"><h2>アカウント</h2>
+    <dl>
+      <dt>Cosmos形式</dt><dd class="mono">${esc(bech)}</dd>
+      <dt>EVM形式</dt><dd class="mono">${esc(hex)}</dd>
+      <dt>バリデーター形式</dt><dd class="mono">${esc(valoper)}</dd>
+      ${valInfo?`<dt>バリデーター</dt><dd><b>${esc(valInfo.moniker)}</b>（運営者アドレスが一致）</dd>`:''}
+    </dl></div>
+    <div class="panel"><h2>残高</h2><div id="accBal"><p class="spin">読み込み中…</p></div></div>
+    <div class="panel"><h2>委任状況（ステーキングプリコンパイル経由）</h2><div id="accDel"><p class="spin">読み込み中…（バリデーター全件に問い合わせます）</p></div></div>
+    <div class="panel"><h2>最近の Cosmos 送金・委任</h2><div id="accTxs"><p class="spin">読み込み中…</p></div></div>`;
+  /* balance */
+  try{
+    const balHex=await evm('eth_getBalance',[hex,'latest']);
+    const wei=BigInt(balHex).toString();
+    document.getElementById('accBal').innerHTML=`<div style="font-size:22px;font-weight:700">${amtHtml(wei)}</div><div class="sub small">ネイティブ残高（EVM側 eth_getBalance と同じ値です。1 drop = 1 wei として同一バイト列で対応します）</div>`;
+  }catch(e){ document.getElementById('accBal').innerHTML=errBox(e); }
+  /* delegations: ask every bonded validator's delegation() — proven live */
+  try{
+    const vs=await getPrecompileValidators();
+    const results=[];
+    for(const v of vs){
+      try{ const d=await fetchDelegation(hex, v.valoper); if(d && BigInt(d.amount||'0')>0n) results.push({v, d}); }catch{}
+    }
+    const el=document.getElementById('accDel');
+    if(!el) return;
+    if(!results.length){ el.innerHTML='<p class="sub">委任は見つかりませんでした（bonded バリデーター全'+vs.length+'件を確認）。</p>'; }
+    else{
+      const total=results.reduce((s,r)=>s+BigInt(r.d.amount),0n);
+      el.innerHTML=`<p>委任合計: <b>${amtHtml(total.toString())}</b>（${results.length} バリデーター）</p>
+      <table style="min-width:420px"><tr><th>バリデーター</th><th class="right">委任額</th></tr>${results.map((r)=>`<tr><td><a href="#/address/${esc(r.v.operatorHex)}">${esc(r.v.moniker)}</a></td><td class="right">${r.d.denom==='drop'? amtHtml(r.d.amount) : esc(r.d.amount)+' '+esc(r.d.denom)}</td></tr>`).join('')}</table>
+      <p class="small sub">※ アンボンディング中（解除待ち）の一覧表示は Phase 1 では未対応です。解除の開始自体は下の履歴（委任解除Tx）で確認できます。</p>`;
+    }
+  }catch(e){ const el=document.getElementById('accDel'); if(el) el.innerHTML=errBox(e); }
+  /* recent cosmos activity */
+  try{
+    const el=document.getElementById('accTxs'); if(!el) return;
+    const qs=[
+      [`message.action='/cosmos.bank.v1beta1.MsgSend' AND transfer.sender='${bech}'`, '送金（送信）'],
+      [`message.action='/cosmos.bank.v1beta1.MsgSend' AND transfer.recipient='${bech}'`, '送金（受信）'],
+      [`message.action='/cosmos.staking.v1beta1.MsgDelegate' AND message.sender='${bech}'`, '委任'],
+      [`message.action='/cosmos.staking.v1beta1.MsgUndelegate' AND message.sender='${bech}'`, '委任解除'],
+    ];
+    const found=new Map();
+    for(const [q,label] of qs){
+      try{
+        const r=await comet('tx_search',{query:q, per_page:'10', page:'1', order_by:'desc'},2);
+        for(const t of r.txs||[]) if(!found.has(t.hash)) found.set(t.hash, {...t, _l:label});
+      }catch{}
+      await sleep(350);
+    }
+    const list=[...found.values()].sort((a,b)=>Number(b.height)-Number(a.height)).slice(0,20);
+    if(!list.length){ el.innerHTML='<p class="sub">Cosmos側の送金・委任の記録は見つかりませんでした（EVM側の活動は EVM エクスプローラー側にあります）。</p>'; return; }
+    el.innerHTML=`<table style="min-width:480px"><tr><th>種類</th><th>Txハッシュ</th><th>ブロック</th><th>結果</th></tr>${list.map((t)=>`<tr><td><span class="pill cosmos">${esc(t._l)}</span></td><td class="mono"><a href="#/tx/${t.hash}">${esc(shortHash(t.hash))}</a></td><td><a href="#/block/${t.height}">#${Number(t.height).toLocaleString()}</a></td><td>${t.tx_result.code===0?'<span class="ok">成功</span>':'<span class="ng">失敗</span>'}</td></tr>`).join('')}</table>`;
+  }catch(e){ const el=document.getElementById('accTxs'); if(el) el.innerHTML='<p class="sub small">履歴の取得に失敗しました。</p>'; }
+}
+
+/* ---------------- search & router ---------------- */
+function setNav(name){ document.querySelectorAll('[data-nav]').forEach((a)=>a.classList.toggle('on', a.dataset.nav===name)); }
+function doSearch(q){
+  q=(q||'').trim();
+  if(!q) return;
+  if(/^\d+$/.test(q)) return location.hash='#/block/'+q;
+  if(/^(0x)?[0-9a-fA-F]{64}$/.test(q)) return location.hash='#/tx/'+q.replace(/^0x/,'').toUpperCase();
+  if(/^(0x)?[0-9a-fA-F]{40}$/.test(q)) return location.hash='#/address/'+(q.startsWith('0x')?q:'0x'+q).toLowerCase();
+  if(/^(infinite|infinitevaloper)1[0-9a-z]+$/i.test(q)) return location.hash='#/address/'+q.toLowerCase();
+  $app.innerHTML=`<div class="err"><b>検索の形式が分かりませんでした。</b><br>ブロック高さ（数字）、Txハッシュ（64桁16進数）、アドレス（infinite1… / infinitevaloper1… / 0x…）のいずれかを入力してください。</div>`;
+}
+document.getElementById('searchForm').addEventListener('submit',(e)=>{ e.preventDefault(); doSearch(document.getElementById('searchInput').value); });
+function router(){
+  clearInterval(window.__homeTimer);
+  const parts=location.hash.replace(/^#\/?/,'').split('/');
+  const [head, arg]=parts;
+  if(!head) return viewHome();
+  if(head==='block'&&arg) return viewBlock(arg);
+  if(head==='tx'&&arg) return viewTx(arg);
+  if(head==='validators') return viewValidators();
+  if(head==='address'&&arg) return viewAddress(decodeURIComponent(arg));
+  return viewHome();
+}
+window.addEventListener('hashchange', router);
+router();
+</script>
+</body>
+</html>
