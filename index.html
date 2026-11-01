@@ -84,6 +84,7 @@
       データ元: CometBFT RPC（Cosmos側のブロック・Tx・バリデーター集合）と EVM RPC + ステーキングプリコンパイル 0x0800（残高・モニカー・委任）。
       Cosmos REST（LCD）はこのチェーンでは公式に公開されていないため使っていません。
       金額は基軸通貨 drop（18 decimals）を [42] に換算して表示しています。デコードできないメッセージ型は「未対応の型」と正直に表示します。
+      「送金」は Cosmos の bank モジュール（トークンの残高・送金を扱う内部モジュールの名前で、現実の銀行とは無関係です）の MsgSend のことです。
     </div>
   </div>
 </footer>
@@ -373,7 +374,7 @@ function decodeMessage(msg){
   const str=(n)=>pbStr(pbGet(f,n)[0]);
   switch(msg.typeUrl){
     case '/cosmos.bank.v1beta1.MsgSend':
-      return { kind:'銀行送金', rows:[['送信者', addrLink(str(1))],['受信者', addrLink(str(2))],['金額', pbGet(f,3).map((c)=>coinHtml(pbCoin(c))).join('<br>')]] };
+      return { kind:'送金', rows:[['送信者', addrLink(str(1))],['受信者', addrLink(str(2))],['金額', pbGet(f,3).map((c)=>coinHtml(pbCoin(c))).join('<br>')]] };
     case '/cosmos.bank.v1beta1.MsgMultiSend': {
       const io=(fld)=>pbGet(f,fld).map((e)=>{ const ef=pbFields(e.val); return esc(pbStr(pbGet(ef,1)[0]))+' ← '+pbGet(ef,2).map((c)=>coinHtml(pbCoin(c))).join(', '); }).join('<br>');
       return { kind:'一括送金（MultiSend）', rows:[['入力', io(1)],['出力', io(2)]] };
@@ -442,7 +443,7 @@ async function viewHome(){
   $app.innerHTML=`<div class="cards" id="statCards"><div class="card"><div class="k">読み込み中…</div></div></div>
   <div class="panel"><h2>最新ブロック</h2><div id="latestBlocks"><p class="spin">読み込み中…</p></div>
   <label class="small sub"><input type="checkbox" id="autoRefresh" checked> 20秒ごとに自動更新</label></div>
-  <div class="panel"><h2>最近の Cosmos メッセージ（銀行送金・委任）</h2><div id="recentCosmos"><p class="spin">読み込み中…（tx_search は時間がかかることがあります）</p></div></div>`;
+  <div class="panel"><h2>最近の Cosmos メッセージ（送金・委任）</h2><div id="recentCosmos"><p class="spin">読み込み中…（tx_search は時間がかかることがあります）</p></div></div>`;
   getPrecompileValidators(); /* warm moniker cache */
   try{
     const st=await comet('status',{});
@@ -479,9 +480,9 @@ async function loadRecentCosmos(){
     const sends=await q('/cosmos.bank.v1beta1.MsgSend');
     await sleep(400);
     const dels=await q('/cosmos.staking.v1beta1.MsgDelegate');
-    const all=[...(sends.txs||[]).map((t)=>({...t, _a:'銀行送金'})), ...(dels.txs||[]).map((t)=>({...t, _a:'委任'}))].sort((a,b)=>Number(b.height)-Number(a.height)).slice(0,10);
+    const all=[...(sends.txs||[]).map((t)=>({...t, _a:'送金'})), ...(dels.txs||[]).map((t)=>({...t, _a:'委任'}))].sort((a,b)=>Number(b.height)-Number(a.height)).slice(0,10);
     el.innerHTML=`<table style="min-width:480px"><tr><th>種類</th><th>Txハッシュ</th><th>ブロック</th><th>結果</th></tr>${all.map((t)=>`<tr><td><span class="pill cosmos">${t._a}</span></td><td class="mono"><a href="#/tx/${t.hash}">${esc(shortHash(t.hash))}</a></td><td><a href="#/block/${t.height}">#${Number(t.height).toLocaleString()}</a></td><td>${t.tx_result.code===0?'<span class="ok">成功</span>':'<span class="ng">失敗 (code '+t.tx_result.code+')</span>'}</td></tr>`).join('')}</table>
-    <p class="small sub">チェーン全体の件数（全履歴）: 銀行送金 ${esc(sends.total_count)} 件 ／ 委任 ${esc(dels.total_count)} 件（tx_search 集計）</p>`;
+    <p class="small sub">チェーン全体の件数（全履歴）: 送金 ${esc(sends.total_count)} 件 ／ 委任 ${esc(dels.total_count)} 件（tx_search 集計）</p>`;
   }catch(e){ el.innerHTML='<p class="sub small">最近の Cosmos メッセージは取得できませんでした（'+esc(e.message||e)+'）。ブロック一覧は上の通り表示できています。</p>'; }
 }
 
@@ -519,7 +520,7 @@ async function viewBlock(height){
   }catch(e){ $app.innerHTML=errBox(e, PROXY_HINT); }
 }
 function msgLabel(typeUrl){
-  const map={'/cosmos.bank.v1beta1.MsgSend':'銀行送金','/cosmos.bank.v1beta1.MsgMultiSend':'一括送金','/cosmos.staking.v1beta1.MsgDelegate':'委任','/cosmos.staking.v1beta1.MsgUndelegate':'委任解除','/cosmos.staking.v1beta1.MsgBeginRedelegate':'再委任','/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward':'報酬請求','/cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission':'手数料報酬請求','/cosmos.evm.vm.v1.MsgEthereumTx':'EVM Tx'};
+  const map={'/cosmos.bank.v1beta1.MsgSend':'送金','/cosmos.bank.v1beta1.MsgMultiSend':'一括送金','/cosmos.staking.v1beta1.MsgDelegate':'委任','/cosmos.staking.v1beta1.MsgUndelegate':'委任解除','/cosmos.staking.v1beta1.MsgBeginRedelegate':'再委任','/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward':'報酬請求','/cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission':'手数料報酬請求','/cosmos.evm.vm.v1.MsgEthereumTx':'EVM Tx'};
   return map[typeUrl] ? esc(map[typeUrl])+' <span class="sub small">'+esc(typeUrl.split('.').pop())+'</span>' : '<span class="mono small">'+esc(typeUrl)+'</span>';
 }
 

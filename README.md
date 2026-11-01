@@ -1,7 +1,9 @@
 # 42 Cosmos Scan
 
 42 Chain（Infinite, Cosmos Chain ID: `infinite_421018-1`）の **Cosmos側**を見るための静的エクスプローラー。
-EVM側エクスプローラー（scan.infinitedrive.xyz）では見えない Cosmos Tx（銀行送金・委任など）の中身を表示する。
+EVM側エクスプローラー（scan.infinitedrive.xyz）では見えない Cosmos Tx（送金・委任など）の中身を表示する。
+（用語注意:「送金」は Cosmos SDK の bank モジュール — トークンの残高・送金を扱う内部モジュールの名前で、
+現実の銀行とは無関係 — の `MsgSend` のこと。以前の版で「銀行送金」と書いていたのは誤解を招く表現だったので改めた。）
 コードはこのリポジトリで公開しているが、ウェブサイトとしてのホスティング（公開URLでの運用）はまだしていない（Phase 3 で検討）。
 
 ## 開発状況
@@ -51,7 +53,7 @@ Cosmos REST（LCD）は公式に公開されていないため使わない。
 
 ## できること（Phase 1）
 
-- **ホーム**: 最新ブロック一覧（高さ・時刻・提案者モニカー・Tx数）、平均ブロック間隔、直近の銀行送金/委任
+- **ホーム**: 最新ブロック一覧（高さ・時刻・提案者モニカー・Tx数）、平均ブロック間隔、直近の送金/委任
 - **ブロック詳細**: ハッシュ、提案者、署名数、Tx一覧（各Txのメッセージ型と結果）
 - **Tx詳細**: CometBFT `/tx` から取得し、protobuf を自前デコード
   - 対応: `MsgSend` / `MsgMultiSend` / `MsgDelegate` / `MsgUndelegate` / `MsgBeginRedelegate` /
